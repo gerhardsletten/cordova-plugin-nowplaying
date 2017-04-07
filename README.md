@@ -20,7 +20,7 @@ cordova plugin add cordova-plugin-nowplaying
 
 ```javascript
 NowPlaying.set({
-	artwork: "http://www.domain.com/image.png", // Can be http:// https:// or image path relative to NSDocumentDirectory
+	artwork: "/image.png", // Can be image path relative to NSDocumentDirectory
 	albumTitle: "The Album Title",
 	trackCount: 10,
 	trackNumber: 1,

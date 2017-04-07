@@ -7,6 +7,5 @@
 }
 
 - (void)setNowPlaying:(CDVInvokedUrlCommand*)command;
-- (void)setNowPlayingArtwork:(NSString*)url;
 
 @end

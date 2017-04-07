@@ -108,58 +108,31 @@
         [mediaDict setValue:[jsonObject objectForKey: @"chapterCount"] forKey:MPNowPlayingInfoPropertyChapterCount];
     }
 
-    center.nowPlayingInfo = mediaDict;
-
-    // Custom handling of artwork in another thread, will be loaded async
     if ([jsonObject objectForKey: @"artwork"] != nil) {
-        [self setNowPlayingArtwork: [jsonObject objectForKey: @"artwork"]];
-    }
-}
-
-/**
- * Will download the image in a background thread and set the appropiate key on nowPlayingInfo
- */
-- (void)setNowPlayingArtwork:(NSString*)url
-{
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
+        NSString *path = [jsonObject objectForKey: @"artwork"];
         UIImage *image = nil;
         // check whether artwork path is present
-        if (![url isEqual: @""]) {
-            // artwork is url download from the interwebs
-            if ([url hasPrefix: @"http://"] || [url hasPrefix: @"https://"]) {
-                NSURL *imageURL = [NSURL URLWithString:url];
-                NSData *imageData = [NSData dataWithContentsOfURL:imageURL];
-                image = [UIImage imageWithData:imageData];
-            } else {
-                // artwork is local. so create it from a UIImage
-                NSString *basePath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
-                NSString *fullPath = [NSString stringWithFormat:@"%@%@", basePath, url];
-                BOOL fileExists = [[NSFileManager defaultManager] fileExistsAtPath:fullPath];
-                if (fileExists) {
-                    image = [UIImage imageNamed:fullPath];
-                }
+        if (![path isEqual: @""]) {
+            NSString *basePath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+            NSString *fullPath = [NSString stringWithFormat:@"%@%@", basePath, path];
+            BOOL fileExists = [[NSFileManager defaultManager] fileExistsAtPath:fullPath];
+            if (fileExists) {
+                image = [UIImage imageNamed:fullPath];
             }
         }
-
         // Check if image was available otherwise don't do anything
-        if (image == nil) {
-            return;
+        if (image != nil) {
+            MPMediaItemArtwork *artwork = [[MPMediaItemArtwork alloc] initWithBoundsSize:image.size requestHandler:^UIImage * _Nonnull(CGSize size) {
+                UIGraphicsBeginImageContext(size);
+                [image drawInRect:CGRectMake(0, 0, size.width, size.height)];
+                UIImage *destImage = UIGraphicsGetImageFromCurrentImageContext();
+                UIGraphicsEndImageContext();
+                return destImage;
+            }];
+            [mediaDict setValue:artwork forKey:MPMediaItemPropertyArtwork];
         }
-
-        // check whether image is loaded
-        CGImageRef cgref = [image CGImage];
-        CIImage *cim = [image CIImage];
-        if (cim != nil || cgref != NULL) {
-            // Callback to main queue to set nowPlayingInfo
-            dispatch_async(dispatch_get_main_queue(), ^{
-                MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
-                MPMediaItemArtwork *artwork = [[MPMediaItemArtwork alloc] initWithImage: image];
-                NSMutableDictionary *mediaDict = (center.nowPlayingInfo != nil) ? [[NSMutableDictionary alloc] initWithDictionary: center.nowPlayingInfo] : [NSMutableDictionary dictionary];
-                [mediaDict setValue:artwork forKey:MPMediaItemPropertyArtwork];
-                center.nowPlayingInfo = mediaDict;
-            });
-        }
-    });
+    }
+    center.nowPlayingInfo = mediaDict;
 }
 
 @end
